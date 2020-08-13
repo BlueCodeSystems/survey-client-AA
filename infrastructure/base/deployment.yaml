@@ -1,0 +1,117 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: survey-config
+  labels:
+    app: survey-app
+data:
+  survey-database: lime
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+  labels:
+    app: survey-app
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: survey-app
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mariadb-app
+  labels:
+    app: survey-app
+spec:
+  serviceName: mariadb-service
+  selector:
+    matchLabels:
+      app: survey-app
+  template:
+    metadata:
+      labels:
+        app: survey-app
+    spec:
+      containers:
+      - image: mariadb
+        name: mariadb-container
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: survey-secrets
+              key: mariadb-password
+        ports:
+        - containerPort: 3306
+          name: postgres-port
+        volumeMounts:
+        - name: mariadb-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mariadb-persistent-storage
+        persistentVolumeClaim:
+          claimName: mariadb-pv-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: survey-service
+  labels:
+    app: survey-app
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: survey-app
+  type:
+    LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: limesurvey-app
+  labels:
+    app: survey-app
+spec:
+  selector:
+    matchLabels:
+      app: survey-app
+  template:
+    metadata:
+      labels:
+        app: survey-app
+    spec:
+      containers:
+      - image: acspri/limesurvey:latest
+        name: limesurvey-container
+        env:
+        - name: LIMESURVEY_DB_NAME
+          value: 'limesurvey'
+        - name: LIMESURVEY_DEBUG
+          value: '1'
+        - name: LIMESURVEY_DB_HOST
+          value: $(mariadb-service)
+        - name: LIMESURVEY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: survey-secrets
+              key: mariadb-password
+        - name: LIMESURVEY_ADMIN_USER
+          value: admin
+        - name: LIME_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: survey-secrets
+              key: survey-admin-password
+        - name: LIMESURVEY_ADMIN_NAME
+          value: 'Lime Administrator'
+        - name: LIMESURVEY_ADMIN_EMAIL
+          value: 'info@bluecodeltd.com'
+        ports:
+        - containerPort: 80
+          name: lime-port

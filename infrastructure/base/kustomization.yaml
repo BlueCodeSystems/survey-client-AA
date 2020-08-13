@@ -1,0 +1,13 @@
+resources:
+  - storage.yaml
+  - deployment.yaml
+  - secrets.yaml
+  - ingress.yaml
+vars:
+  - name: mariadb-service
+    objref:
+      kind: Service
+      name: mariadb-service
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name

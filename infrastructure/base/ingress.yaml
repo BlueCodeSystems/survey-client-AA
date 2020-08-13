@@ -1,0 +1,13 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+    name: survey-ingress
+spec:
+  rules:
+  - host: survey.bluecodeltd.com
+    http:
+      paths:
+      - path:
+        backend:
+          serviceName: survey-service
+          servicePort: 8080
